@@ -237,36 +237,82 @@
             console.log('🚀 尝试解码 survey 参数...');
             console.log('原始参数前100字符:', surveyParam.substring(0, 100));
             
-            // 修正的解码方式：处理中文字符
             let decodedText;
             
+            // 🔧 修复的解码方式：处理中文字符编码问题
             try {
-              // 方法1: 直接 Base64 解码（适用于纯英文或已正确编码的中文）
+              // 方法1: 先尝试直接 Base64 解码
               decodedText = atob(surveyParam);
               
-              // 检查是否包含中文乱码字符
-              if (decodedText.includes('å') || decodedText.includes('ç') || decodedText.includes('è')) {
-                throw new Error('检测到中文乱码，尝试其他解码方式');
+              // 🔍 检查是否为正常的 ASCII 文本
+              let hasValidChars = true;
+              for (let i = 0; i < Math.min(decodedText.length, 50); i++) {
+                const charCode = decodedText.charCodeAt(i);
+                // 如果包含异常字符码，说明可能是编码问题
+                if (charCode > 255) {
+                  hasValidChars = false;
+                  break;
+                }
+              }
+              
+              // 如果检测到编码问题，尝试 UTF-8 解码
+              if (!hasValidChars || decodedText.includes('å') || decodedText.includes('ç') || decodedText.includes('è') || decodedText.includes('ä¸') || decodedText.includes('ä½') || decodedText.includes('æ')) {
+                console.log('🔄 检测到中文编码问题，使用 UTF-8 解码...');
+                throw new Error('需要使用 UTF-8 解码');
               }
               
             } catch (error) {
-              console.log('🔄 尝试 UTF-8 解码方式...');
+              console.log('🔄 使用 UTF-8 解码方式...');
               
-              // 方法2: Base64 + UTF-8 解码（适用于中文）
-              const base64Decoded = atob(surveyParam);
-              
-              // 将字节序列转换为正确的 UTF-8 字符串
-              const bytes = new Uint8Array(base64Decoded.length);
-              for (let i = 0; i < base64Decoded.length; i++) {
-                bytes[i] = base64Decoded.charCodeAt(i);
+              try {
+                // 方法2: UTF-8 解码（处理中文）
+                const binaryString = atob(surveyParam);
+                const bytes = new Uint8Array(binaryString.length);
+                
+                for (let i = 0; i < binaryString.length; i++) {
+                  bytes[i] = binaryString.charCodeAt(i);
+                }
+                
+                decodedText = new TextDecoder('utf-8').decode(bytes);
+                
+              } catch (utf8Error) {
+                console.log('🔄 尝试备用解码方式...');
+                
+                // 方法3: URL解码 + Base64解码
+                try {
+                  const urlDecoded = decodeURIComponent(surveyParam);
+                  const binaryString = atob(urlDecoded);
+                  const bytes = new Uint8Array(binaryString.length);
+                  
+                  for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                  }
+                  
+                  decodedText = new TextDecoder('utf-8').decode(bytes);
+                  
+                } catch (finalError) {
+                  // 最后尝试：直接 URL 解码
+                  try {
+                    decodedText = decodeURIComponent(atob(surveyParam));
+                  } catch (lastError) {
+                    throw new Error('所有解码方式都失败');
+                  }
+                }
               }
-              
-              decodedText = new TextDecoder('utf-8').decode(bytes);
             }
             
             console.log('✅ 解码成功！');
             console.log('📝 解码后的文本长度:', decodedText.length);
             console.log('📝 解码后的文本前100字符:', decodedText.substring(0, 100));
+            
+            // 🧹 清理可能的乱码
+            decodedText = decodedText.replace(/^\uFEFF/, ''); // 移除 BOM
+            decodedText = decodedText.trim();
+            
+            // 🔍 验证解码结果
+            if (!decodedText || decodedText.length < 5) {
+              throw new Error('解码结果为空或过短');
+            }
             
             // 填入编辑器
             document.getElementById('editor').value = decodedText;
@@ -287,33 +333,15 @@
             
           } catch (error) {
             console.error('❌ survey 参数解码失败:', error);
+            showAutoLoadNotification('问卷解码失败，请检查链接格式或重新生成', 'error');
             
-            // 最后的备用方案：尝试 URL 解码 + Base64 解码
-            try {
-              console.log('🔄 尝试最后的备用解码方式...');
-              const urlDecoded = decodeURIComponent(surveyParam);
-              
-              // 使用 TextDecoder 进行正确的 UTF-8 解码
-              const base64Decoded = atob(urlDecoded);
-              const bytes = new Uint8Array(base64Decoded.length);
-              for (let i = 0; i < base64Decoded.length; i++) {
-                bytes[i] = base64Decoded.charCodeAt(i);
-              }
-              const decodedText = new TextDecoder('utf-8').decode(bytes);
-              
-              document.getElementById('editor').value = decodedText;
-              showAutoLoadNotification('问卷已自动加载（备用方式）！正在转换...', 'success');
-              
-              setTimeout(() => {
-                document.getElementById('convert-btn').click();
-                showAutoLoadNotification('问卷转换完成！', 'success');
-              }, 1000);
-              
-              return true;
-            } catch (error2) {
-              console.error('❌ 所有解码方式都失败:', error2);
-              showAutoLoadNotification('问卷解码失败，请检查中文编码', 'error');
-            }
+            // 🔍 显示调试信息
+            console.log('调试信息:');
+            console.log('- 原始参数长度:', surveyParam.length);
+            console.log('- 原始参数开头:', surveyParam.substring(0, 50));
+            console.log('- 请尝试重新生成问卷链接');
+            
+            return false;
           }
         }
         
