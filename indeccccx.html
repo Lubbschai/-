@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>调查问卷转换器 - 固定预览区域版</title>
+  
+  <!-- 引入Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 引入Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- Tailwind配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            secondary: '#64748b',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+            info: '#06b6d4',
+            light: '#f8fafc',
+            dark: '#1e293b'
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <!-- 自定义工具类 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .card-shadow {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      }
+      .btn-hover {
+        @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+      }
+      .text-gradient {
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      .view-transition {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+      .panel-transition {
+        transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+      }
+    }
+  </style>
+</head>
+<body class="font-inter bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+  <main class="flex-grow container mx-auto px-4 py-8 md:py-12">
+    <!-- 首页视图 -->
+    <div id="home-view" class="view active">
+      <!-- 介绍卡片 -->
+      <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 shadow-md">
+        <h2 class="text-2xl md:text-3xl font-bold mb-4 text-gray-800">
+          强大的调查问卷转换工具
+        </h2>
+        <p class="text-lg text-gray-600 mb-6 max-w-3xl">
+          将文本格式的调查问卷快速转换为交互式网页表单，支持多种问题类型，实时预览，数据收集与导出。
+        </p>
+        <div class="flex flex-wrap gap-4">
+          <div class="flex items-center">
+            <i class="fa fa-bolt text-primary text-xl mr-2"></i>
+            <span class="text-gray-700">快速转换</span>
+          </div>
+          <div class="flex items-center">
+            <i class="fa fa-magic text-primary text-xl mr-2"></i>
+            <span class="text-gray-700">多种题型</span>
+          </div>
+          <div class="flex items-center">
+            <i class="fa fa-mobile text-primary text-xl mr-2"></i>
+            <span class="text-gray-700">响应式设计</span>
+          </div>
+          <div class="flex items-center">
+            <i class="fa fa-database text-primary text-xl mr-2"></i>
+            <span class="text-gray-700">数据导出</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 主工作区 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        <!-- 编辑器区域 -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg">
+          <div class="bg-primary p-4">
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <i class="fa fa-edit mr-2"></i> 输入调查问卷文本
+            </h2>
+          </div>
+          <div class="p-5">
+            <div class="relative mb-5">
+              <div class="absolute inset-0 border-2 border-primary/30 rounded-lg pointer-events-none transition-all duration-300"></div>
+              <textarea id="editor" placeholder="请在此输入调查问卷文本..." 
+                class="w-full h-64 p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all resize-none"></textarea>
+            </div>
+            
+            <div class="flex flex-wrap gap-3 mb-5">
+              <button id="convert-btn" class="px-6 py-3 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg flex items-center btn-hover">
+                <i class="fa fa-magic mr-2"></i> 转换调查问卷
+              </button>
+              <button id="clear-btn" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg flex items-center btn-hover">
+                <i class="fa fa-trash mr-2"></i> 清空
+              </button>
+              <button id="example-btn" class="px-6 py-3 bg-info hover:bg-info/90 text-white font-medium rounded-lg flex items-center btn-hover">
+                <i class="fa fa-lightbulb-o mr-2"></i> 加载示例
+              </button>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg mb-5">
+              <h3 class="font-semibold mb-2 text-gray-700">格式说明:</h3>
+              <ul class="text-sm text-gray-600 space-y-1 list-disc pl-5">
+                <li>第一行为问卷标题</li>
+                <li>第二行开始为说明文字（可选）</li>
+                <li>问题格式: <code class="bg-gray-200 px-1 py-0.5 rounded text-xs">1. 问题文本[radio|checkbox|dropdown|textarea]</code></li>
+                <li>选项格式: <code class="bg-gray-200 px-1 py-0.5 rounded text-xs">a) 选项文本</code></li>
+              </ul>
+            </div>
+            
+            <div class="flex flex-wrap gap-3">
+              <button id="set-survey-btn" class="px-5 py-2.5 bg-secondary hover:bg-secondary/90 text-white font-medium rounded-lg flex items-center btn-hover">
+                <i class="fa fa-download mr-2"></i> 接收问卷文本
+              </button>
+            </div>
+            
+            <div id="editor-error" class="mt-3 text-danger text-sm hidden">
+              <i class="fa fa-exclamation-circle mr-1"></i>
+              <span></span>
+            </div>
+            
+            <!-- 结果面板 -->
+            <div id="results-panel" class="mt-6 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden panel-transition">
+              <div class="bg-gray-100 p-3 flex justify-between items-center border-b border-gray-200 cursor-pointer" id="results-panel-header">
+                <h3 class="font-semibold text-gray-700">填写结果 (文本格式)</h3>
+                <button id="toggle-results-btn" class="text-gray-500 hover:text-gray-700 transition-colors">
+                  <i class="fa fa-chevron-down"></i>
+                </button>
+              </div>
+              <div id="results-content" class="p-4 max-h-0 overflow-hidden transition-all duration-300">
+                <pre id="results-text" class="text-sm font-mono bg-white p-3 rounded border border-gray-200 overflow-x-auto h-64"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 预览区域 -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg">
+          <div class="bg-info p-4">
+            <h2 class="text-xl font-bold text-white flex items-center">
+              <i class="fa fa-eye mr-2"></i> 调查问卷预览
+            </h2>
+          </div>
+          <div class="p-5">
+            <div id="preview-container" class="bg-gray-50 rounded-lg p-5 border border-gray-200 overflow-y-auto max-h-[600px]">
+              <div class="text-center text-gray-400 h-full flex flex-col items-center justify-center">
+                <i class="fa fa-file-text-o text-5xl mb-3 block"></i>
+                <p class="text-lg">请点击"转换调查问卷"按钮生成问卷</p>
+              </div>
+            </div>
+            
+            <div id="preview-error" class="mt-3 text-danger text-sm hidden">
+              <i class="fa fa-exclamation-circle mr-1"></i>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 功能说明 -->
+      <div class="mt-12 bg-white rounded-xl shadow-md p-6">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">功能特点</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-blue-50 p-5 rounded-lg border border-blue-100 transition-all duration-300 hover:shadow-md">
+            <div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+              <i class="fa fa-code text-primary text-xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold mb-2 text-gray-800">简易文本格式</h3>
+            <p class="text-gray-600">使用简单的文本格式编写问卷，支持多种问题类型，包括单选题、多选题、下拉菜单和文本题。</p>
+          </div>
+          
+          <div class="bg-green-50 p-5 rounded-lg border border-green-100 transition-all duration-300 hover:shadow-md">
+            <div class="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center mb-4">
+              <i class="fa fa-mobile text-success text-xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold mb-2 text-gray-800">响应式设计</h3>
+            <p class="text-gray-600">生成的问卷在各种设备上都能完美显示，从手机到桌面电脑都有良好的用户体验。</p>
+          </div>
+          
+          <div class="bg-purple-50 p-5 rounded-lg border border-purple-100 transition-all duration-300 hover:shadow-md">
+            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+              <i class="fa fa-plug text-purple-600 text-xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold mb-2 text-gray-800">API接口</h3>
+            <p class="text-gray-600">提供简单的JavaScript API，可轻松集成到其他系统中，实现问卷的动态加载和结果收集。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- JavaScript -->
+  <script>
+    // 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', function() {
+      // ========== 新增：URL 参数自动加载功能 ==========
+      
+      // 检查 URL 参数
+      function getUrlParameter(name) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(name);
+      }
+      
+      // 自动加载问卷 - 支持多种参数格式
+      function autoLoadSurvey() {
+        console.log('🔍 开始检查 URL 参数...');
+        console.log('当前 URL:', window.location.href);
+        
+        // 方法1: 检查 survey 参数（原版 Base64）
+        const surveyParam = getUrlParameter('survey');
+        console.log('survey 参数:', surveyParam ? `存在，长度: ${surveyParam.length}` : '不存在');
+        
+        if (surveyParam) {
+          try {
+            console.log('🚀 尝试解码 survey 参数...');
+            console.log('原始参数前100字符:', surveyParam.substring(0, 100));
+            
+            // 修正的解码方式：直接 Base64 解码，不用 URL 解码
+            const base64Decoded = atob(surveyParam);
+            
+            console.log('✅ 解码成功！');
+            console.log('📝 解码后的文本长度:', base64Decoded.length);
+            console.log('📝 解码后的文本前100字符:', base64Decoded.substring(0, 100));
+            
+            // 填入编辑器
+            document.getElementById('editor').value = base64Decoded;
+            
+            showAutoLoadNotification('问卷已自动加载！正在转换...', 'success');
+            
+            // 自动转换
+            setTimeout(() => {
+              console.log('🔄 开始自动转换...');
+              const convertBtn = document.getElementById('convert-btn');
+              if (convertBtn) {
+                convertBtn.click();
+                showAutoLoadNotification('问卷转换完成！', 'success');
+              } else {
+                console.error('❌ 找不到转换按钮');
+              }
+            }, 1000);
+            
+            return true;
+          } catch (error) {
+            console.error('❌ survey 参数解码失败:', error);
+            console.log('错误详情:', error.message);
+            
+            // 尝试备用解码方式
+            try {
+              console.log('🔄 尝试备用解码方式...');
+              const urlDecoded = decodeURIComponent(surveyParam);
+              const base64Decoded = atob(urlDecoded);
+              
+              document.getElementById('editor').value = base64Decoded;
+              showAutoLoadNotification('问卷已自动加载（备用方式）！正在转换...', 'success');
+              
+              setTimeout(() => {
+                document.getElementById('convert-btn').click();
+                showAutoLoadNotification('问卷转换完成！', 'success');
+              }, 1000);
+              
+              return true;
+            } catch (error2) {
+              console.error('❌ 备用解码方式也失败:', error2);
+              showAutoLoadNotification('问卷解码失败，请检查链接格式', 'error');
+            }
+          }
+        }
+        
+        // 方法2: 检查 data 参数（V2 结构化数据）
+        const dataParam = getUrlParameter('data');
+        const autoParam = getUrlParameter('auto');
+        if (dataParam) {
+          try {
+            // 解码结构化数据
+            const decodedJson = decodeURIComponent(atob(dataParam));
+            const surveyData = JSON.parse(decodedJson);
+            
+            // 将结构化数据转换回文本格式
+            const surveyText = convertStructuredToText(surveyData);
+            document.getElementById('editor').value = surveyText;
+            
+            showAutoLoadNotification('结构化问卷已自动加载！正在转换...', 'success');
+            
+            // 自动转换
+            setTimeout(() => {
+              document.getElementById('convert-btn').click();
+              showAutoLoadNotification('问卷转换完成！', 'success');
+            }, 1000);
+            
+            return true; // 成功加载
+          } catch (error) {
+            console.error('data 参数加载失败:', error);
+          }
+        }
+        
+        // 方法3: 检查 text 参数（简化版直接文本）
+        const textParam = getUrlParameter('text');
+        const modeParam = getUrlParameter('mode');
+        if (textParam) {
+          try {
+            // 直接解码文本
+            const decodedText = decodeURIComponent(textParam);
+            document.getElementById('editor').value = decodedText;
+            
+            showAutoLoadNotification('文本问卷已自动加载！正在转换...', 'success');
+            
+            // 自动转换
+            setTimeout(() => {
+              document.getElementById('convert-btn').click();
+              showAutoLoadNotification('问卷转换完成！', 'success');
+            }, 1000);
+            
+            return true; // 成功加载
+          } catch (error) {
+            console.error('text 参数加载失败:', error);
+          }
+        }
+        
+        // 如果所有方法都失败
+        if (surveyParam || dataParam || textParam) {
+          showAutoLoadNotification('问卷格式有误，请检查链接', 'error');
+        }
+        
+        return false;
+      }
+      
+      // 将结构化数据转换回文本格式
+      function convertStructuredToText(surveyData) {
+        let text = surveyData.title + '\n\n';
+        
+        surveyData.questions.forEach((question, index) => {
+          text += `${question.number || (index + 1)}. ${question.question}`;
+          
+          // 添加题型标记
+          if (question.type) {
+            text += `[${question.type}]`;
+          }
+          
+          text += '\n';
+          
+          // 添加选项
+          if (question.options && question.options.length > 0) {
+            question.options.forEach((option, optIndex) => {
+              const letter = String.fromCharCode(97 + optIndex); // a, b, c, d...
+              text += `${letter}) ${option}\n`;
+            });
+          }
+          
+          text += '\n';
+        });
+        
+        return text.trim();
+      }
+      
+      // 显示自动加载通知
+      function showAutoLoadNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 transition-all duration-300 ${
+          type === 'success' ? 'bg-green-500' : 
+          type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+        }`;
+        notification.innerHTML = `
+          <div class="flex items-center">
+            <i class="fa fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info'} mr-2"></i>
+            <span>${message}</span>
+          </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.style.opacity = '0';
+          setTimeout(() => {
+            if (document.body.contains(notification)) {
+              document.body.removeChild(notification);
+            }
+          }, 300);
+        }, 3000);
+      }
+      
+      // 页面加载时检查 URL 参数
+      autoLoadSurvey();
+      
+      // ========== 以下是你的原有代码，保持不变 ==========
+      
+      // 导航栏滚动效果
+      const navbar = document.getElementById('navbar');
+      window.addEventListener('scroll', function() {
+        if (window.scrollY > 10) {
+          navbar.classList.add('py-2');
+          navbar.classList.add('shadow-lg');
+        } else {
+          navbar.classList.remove('py-2');
+          navbar.classList.remove('shadow-lg');
+        }
+      });
+      
+      // 加载示例问卷
+      document.getElementById('example-btn').addEventListener('click', function() {
+        const exampleSurvey = `用户满意度调查
+请对我们的产品进行评价
+1. 您对产品的整体满意度如何？[radio]
+a) 非常满意
+b) 满意
+c) 一般
+d) 不满意
+2. 您认为我们的产品有哪些优点？（可多选）[checkbox]
+a) 功能丰富
+b) 界面美观
+c) 操作简单
+d) 性能稳定
+e) 价格合理
+3. 您最常使用的功能是什么？[dropdown]
+a) 数据统计
+b) 报告生成
+c) 数据导入导出
+d) 用户管理
+4. 您对我们的产品有什么建议？[textarea]`;
+        
+        document.getElementById('editor').value = exampleSurvey;
+        hideError('editor-error');
+      });
+      
+      // 清空编辑器
+      document.getElementById('clear-btn').addEventListener('click', function() {
+        document.getElementById('editor').value = '';
+        hideError('editor-error');
+      });
+      
+      // 转换调查问卷
+      document.getElementById('convert-btn').addEventListener('click', function() {
+        const surveyText = document.getElementById('editor').value.trim();
+        
+        if (!surveyText) {
+          showError('editor-error', '请输入调查问卷内容');
+          return;
+        }
+        
+        try {
+          const survey = parseSurvey(surveyText);
+          renderSurvey(survey);
+          hideError('editor-error');
+          hideError('preview-error');
+          // 重置结果面板
+          resetResultsPanel();
+        } catch (error) {
+          showError('preview-error', error.message);
+        }
+      });
+      
+      // 接收问卷文本
+      document.getElementById('set-survey-btn').addEventListener('click', function() {
+        const surveyText = prompt('请输入调查问卷文本:');
+        if (surveyText !== null) {
+          document.getElementById('editor').value = surveyText;
+          hideError('editor-error');
+        }
+      });
+      
+      // 解析调查问卷文本
+      function parseSurvey(text) {
+        const lines = text.split('\n').map(line => line.trim());
+        if (lines.length === 0) {
+          throw new Error('调查问卷内容不能为空');
+        }
+        
+        const survey = {
+          title: lines[0],
+          description: '',
+          questions: []
+        };
+        
+        let currentQuestion = null;
+        let inDescription = true;
+        
+        // 存储完整的调查问卷文本，用于结果显示
+        survey.fullText = text;
+        
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          
+          // 空行跳过
+          if (!line) continue;
+          
+          // 问题行
+          const questionMatch = line.match(/^(\d+)\.\s+(.*?)\[(radio|checkbox|dropdown|textarea)\]$/);
+          if (questionMatch) {
+            inDescription = false;
+            const questionNumber = questionMatch[1];
+            const questionText = questionMatch[2];
+            const questionType = questionMatch[3];
+            
+            currentQuestion = {
+              number: questionNumber,
+              text: questionText,
+              type: questionType,
+              options: []
+            };
+            
+            survey.questions.push(currentQuestion);
+            continue;
+          }
+          
+          // 选项行
+          if (currentQuestion && (currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox' || currentQuestion.type === 'dropdown')) {
+            const optionMatch = line.match(/^([a-z])\)\s+(.*)$/);
+            if (optionMatch) {
+              const optionKey = optionMatch[1];
+              const optionText = optionMatch[2];
+              
+              currentQuestion.options.push({
+                key: optionKey,
+                text: optionText
+              });
+              continue;
+            }
+          }
+          
+          // 描述行
+          if (inDescription) {
+            survey.description += (survey.description ? '\n' : '') + line;
+          }
+        }
+        
+        if (survey.questions.length === 0) {
+          throw new Error('调查问卷中未找到问题');
+        }
+        
+        return survey;
+      }
+      
+      // 渲染调查问卷
+      function renderSurvey(survey) {
+        const container = document.getElementById('preview-container');
+        container.innerHTML = '';
+        
+        // 存储调查问卷对象，用于结果显示
+        window.currentSurvey = survey;
+        
+        // 创建问卷标题
+        const titleElement = document.createElement('h2');
+        titleElement.className = 'text-2xl font-bold mb-4 text-gray-800';
+        titleElement.textContent = survey.title;
+        container.appendChild(titleElement);
+        
+        // 创建问卷描述
+        if (survey.description) {
+          const descriptionElement = document.createElement('p');
+          descriptionElement.className = 'text-gray-600 mb-6';
+          descriptionElement.textContent = survey.description;
+          container.appendChild(descriptionElement);
+        }
+        
+        // 创建问题表单
+        const formElement = document.createElement('form');
+        formElement.id = 'survey-form';
+        container.appendChild(formElement);
+        
+        // 创建问题
+        survey.questions.forEach((question, index) => {
+          const questionContainer = document.createElement('div');
+          questionContainer.className = 'mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200';
+          formElement.appendChild(questionContainer);
+          
+          // 创建问题标题
+          const questionTitle = document.createElement('h3');
+          questionTitle.className = 'text-lg font-semibold mb-3 text-gray-800';
+          questionTitle.textContent = `${question.number}. ${question.text}`;
+          questionContainer.appendChild(questionTitle);
+          
+          // 根据问题类型创建不同的输入控件
+          switch (question.type) {
+            case 'radio':
+            case 'checkbox':
+              question.options.forEach(option => {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'mb-2 flex items-center';
+                
+                const input = document.createElement('input');
+                input.type = question.type;
+                input.id = `q${question.number}_${option.key}`;
+                input.name = `question${question.number}`;
+                input.value = option.key;
+                input.className = 'mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300';
+                
+                const label = document.createElement('label');
+                label.htmlFor = `q${question.number}_${option.key}`;
+                label.className = 'text-gray-700';
+                label.textContent = option.text;
+                
+                inputGroup.appendChild(input);
+                inputGroup.appendChild(label);
+                questionContainer.appendChild(inputGroup);
+              });
+              break;
+              
+            case 'dropdown':
+              const select = document.createElement('select');
+              select.name = `question${question.number}`;
+              select.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary';
+              
+              // 添加默认选项
+              const defaultOption = document.createElement('option');
+              defaultOption.value = '';
+              defaultOption.textContent = '请选择...';
+              defaultOption.selected = true;
+              defaultOption.disabled = true;
+              select.appendChild(defaultOption);
+              
+              // 添加选项
+              question.options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option.key;
+                optionElement.textContent = option.text;
+                select.appendChild(optionElement);
+              });
+              
+              questionContainer.appendChild(select);
+              break;
+              
+            case 'textarea':
+              const textarea = document.createElement('textarea');
+              textarea.name = `question${question.number}`;
+              textarea.rows = 4;
+              textarea.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary';
+              textarea.placeholder = '请输入您的回答...';
+              questionContainer.appendChild(textarea);
+              break;
+          }
+        });
+        
+        // 添加提交按钮
+        const submitButton = document.createElement('button');
+        submitButton.type = 'submit';
+        submitButton.id = 'submit-survey';
+        submitButton.className = 'mt-4 px-6 py-3 bg-success hover:bg-success/90 text-white font-medium rounded-lg flex items-center btn-hover mx-auto';
+        submitButton.innerHTML = '<i class="fa fa-check mr-2"></i> 提交问卷';
+        
+        // 添加表单提交事件处理
+        formElement.addEventListener('submit', function(event) {
+          event.preventDefault(); // 阻止默认提交行为
+          
+          const results = getSurveyResults();
+          if (Object.keys(results).length === 0) {
+            alert('问卷为空或未填写任何内容');
+            return;
+          }
+          
+          showResults(results);
+        });
+        
+        formElement.appendChild(submitButton);
+      }
+      
+      // 获取调查问卷结果
+      function getSurveyResults() {
+        const form = document.getElementById('survey-form');
+        if (!form) return {};
+        
+        const results = {};
+        const elements = form.elements;
+        
+        for (let i = 0; i < elements.length; i++) {
+          const element = elements[i];
+          if (element.name.startsWith('question')) {
+            const questionNumber = element.name.replace('question', '');
+            
+            if (element.type === 'radio' || element.type === 'checkbox') {
+              if (element.checked) {
+                if (!results[questionNumber]) {
+                  results[questionNumber] = element.type === 'checkbox' ? [] : '';
+                }
+                
+                if (element.type === 'checkbox') {
+                  results[questionNumber].push(element.value);
+                } else {
+                  results[questionNumber] = element.value;
+                }
+              }
+            } else {
+              if (element.value) {
+                results[questionNumber] = element.value;
+              }
+            }
+          }
+        }
+        
+        return results;
+      }
+      
+      // 将结果格式化为文本
+      function formatResultsAsText(results) {
+        const survey = window.currentSurvey;
+        if (!survey) {
+          return "无法获取调查问卷信息";
+        }
+        
+        let text = `${survey.title}\n\n`;
+        
+        if (survey.description) {
+          text += `${survey.description}\n\n`;
+        }
+        
+        text += "回答结果:\n\n";
+        
+        for (const questionNumber in results) {
+          const answer = results[questionNumber];
+          const question = survey.questions.find(q => q.number === questionNumber);
+          
+          if (!question) continue;
+          
+          text += `${question.number}. ${question.text}\n`;
+          
+          if (question.type === 'radio' || question.type === 'checkbox' || question.type === 'dropdown') {
+            if (Array.isArray(answer)) {
+              // 多选题
+              text += "- 选择了:\n";
+              answer.forEach(optionKey => {
+                const option = question.options.find(o => o.key === optionKey);
+                if (option) {
+                  text += `  - ${option.text}\n`;
+                }
+              });
+            } else {
+              // 单选题或下拉菜单
+              const option = question.options.find(o => o.key === answer);
+              if (option) {
+                text += `- 选择了: ${option.text}\n`;
+              }
+            }
+          } else {
+            // 文本题
+            text += `- 回答: ${answer}\n`;
+          }
+          
+          text += "\n";
+        }
+        
+        return text;
+      }
+      
+      // 显示结果
+      function showResults(results) {
+        // 将结果格式化为文本
+        const resultsText = formatResultsAsText(results);
+        
+        // 更新编辑器内容
+        document.getElementById('editor').value = resultsText;
+        
+        // 更新结果面板
+        document.getElementById('results-text').textContent = resultsText;
+        
+        // 显示结果面板
+        const resultsPanel = document.getElementById('results-panel');
+        resultsPanel.classList.remove('max-h-0', 'opacity-0', 'p-0');
+        resultsPanel.classList.add('max-h-[500px]', 'opacity-100', 'p-0');
+        
+        // 展开结果内容
+        setTimeout(() => {
+          document.getElementById('results-content').style.maxHeight = '500px';
+          document.getElementById('toggle-results-btn').innerHTML = '<i class="fa fa-chevron-up"></i>';
+        }, 10);
+        
+        // 显示提示
+        alert('调查问卷结果已收集并显示在编辑器和结果面板中');
+        console.log('调查问卷结果:', results);
+      }
+      
+      // 重置结果面板
+      function resetResultsPanel() {
+        const resultsContent = document.getElementById('results-content');
+        resultsContent.style.maxHeight = '0';
+        
+        const resultsPanel = document.getElementById('results-panel');
+        resultsPanel.classList.add('max-h-0', 'opacity-0', 'p-0');
+        resultsPanel.classList.remove('max-h-[500px]', 'opacity-100', 'p-0');
+        
+        document.getElementById('toggle-results-btn').innerHTML = '<i class="fa fa-chevron-down"></i>';
+      }
+      
+      // 切换结果面板
+      document.getElementById('results-panel-header').addEventListener('click', function() {
+        const resultsContent = document.getElementById('results-content');
+        const toggleBtn = document.getElementById('toggle-results-btn');
+        
+        if (resultsContent.style.maxHeight === '0px' || !resultsContent.style.maxHeight) {
+          resultsContent.style.maxHeight = '500px';
+          toggleBtn.innerHTML = '<i class="fa fa-chevron-up"></i>';
+        } else {
+          resultsContent.style.maxHeight = '0';
+          toggleBtn.innerHTML = '<i class="fa fa-chevron-down"></i>';
+        }
+      });
+      
+      // 显示错误信息
+      function showError(elementId, message) {
+        const errorElement = document.getElementById(elementId);
+        errorElement.querySelector('span').textContent = message;
+        errorElement.classList.remove('hidden');
+      }
+      
+      // 隐藏错误信息
+      function hideError(elementId) {
+        const errorElement = document.getElementById(elementId);
+        errorElement.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
