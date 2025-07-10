@@ -237,15 +237,39 @@
             console.log('🚀 尝试解码 survey 参数...');
             console.log('原始参数前100字符:', surveyParam.substring(0, 100));
             
-            // 修正的解码方式：直接 Base64 解码，不用 URL 解码
-            const base64Decoded = atob(surveyParam);
+            // 修正的解码方式：处理中文字符
+            let decodedText;
+            
+            try {
+              // 方法1: 直接 Base64 解码（适用于纯英文或已正确编码的中文）
+              decodedText = atob(surveyParam);
+              
+              // 检查是否包含中文乱码字符
+              if (decodedText.includes('å') || decodedText.includes('ç') || decodedText.includes('è')) {
+                throw new Error('检测到中文乱码，尝试其他解码方式');
+              }
+              
+            } catch (error) {
+              console.log('🔄 尝试 UTF-8 解码方式...');
+              
+              // 方法2: Base64 + UTF-8 解码（适用于中文）
+              const base64Decoded = atob(surveyParam);
+              
+              // 将字节序列转换为正确的 UTF-8 字符串
+              const bytes = new Uint8Array(base64Decoded.length);
+              for (let i = 0; i < base64Decoded.length; i++) {
+                bytes[i] = base64Decoded.charCodeAt(i);
+              }
+              
+              decodedText = new TextDecoder('utf-8').decode(bytes);
+            }
             
             console.log('✅ 解码成功！');
-            console.log('📝 解码后的文本长度:', base64Decoded.length);
-            console.log('📝 解码后的文本前100字符:', base64Decoded.substring(0, 100));
+            console.log('📝 解码后的文本长度:', decodedText.length);
+            console.log('📝 解码后的文本前100字符:', decodedText.substring(0, 100));
             
             // 填入编辑器
-            document.getElementById('editor').value = base64Decoded;
+            document.getElementById('editor').value = decodedText;
             
             showAutoLoadNotification('问卷已自动加载！正在转换...', 'success');
             
@@ -256,23 +280,28 @@
               if (convertBtn) {
                 convertBtn.click();
                 showAutoLoadNotification('问卷转换完成！', 'success');
-              } else {
-                console.error('❌ 找不到转换按钮');
               }
             }, 1000);
             
             return true;
+            
           } catch (error) {
             console.error('❌ survey 参数解码失败:', error);
-            console.log('错误详情:', error.message);
             
-            // 尝试备用解码方式
+            // 最后的备用方案：尝试 URL 解码 + Base64 解码
             try {
-              console.log('🔄 尝试备用解码方式...');
+              console.log('🔄 尝试最后的备用解码方式...');
               const urlDecoded = decodeURIComponent(surveyParam);
-              const base64Decoded = atob(urlDecoded);
               
-              document.getElementById('editor').value = base64Decoded;
+              // 使用 TextDecoder 进行正确的 UTF-8 解码
+              const base64Decoded = atob(urlDecoded);
+              const bytes = new Uint8Array(base64Decoded.length);
+              for (let i = 0; i < base64Decoded.length; i++) {
+                bytes[i] = base64Decoded.charCodeAt(i);
+              }
+              const decodedText = new TextDecoder('utf-8').decode(bytes);
+              
+              document.getElementById('editor').value = decodedText;
               showAutoLoadNotification('问卷已自动加载（备用方式）！正在转换...', 'success');
               
               setTimeout(() => {
@@ -282,8 +311,8 @@
               
               return true;
             } catch (error2) {
-              console.error('❌ 备用解码方式也失败:', error2);
-              showAutoLoadNotification('问卷解码失败，请检查链接格式', 'error');
+              console.error('❌ 所有解码方式都失败:', error2);
+              showAutoLoadNotification('问卷解码失败，请检查中文编码', 'error');
             }
           }
         }
