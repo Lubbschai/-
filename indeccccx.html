@@ -261,7 +261,40 @@
         submitButton.innerHTML = '<i class="fa fa-check mr-2"></i> 提交问卷';
         formElement.addEventListener('submit', function(event) {
           event.preventDefault();
-          alert('感谢您的填写！');
+          const formData = new FormData(formElement);
+          let resultText = '';
+          // 标题和说明
+          resultText += survey.title + '\n';
+          if (survey.description) {
+            resultText += survey.description + '\n';
+          }
+          // 每道题
+          survey.questions.forEach(q => {
+            resultText += `\n${q.number}. ${q.text}\n`;
+            if (q.type === 'radio' || q.type === 'checkbox' || q.type === 'dropdown') {
+              q.options.forEach(opt => {
+                resultText += `${opt.key}) ${opt.text}\n`;
+              });
+            }
+            // 用户答案
+            let answer = '';
+            if (q.type === 'checkbox') {
+              const values = formData.getAll(`question${q.number}`);
+              answer = values.map(v => {
+                const opt = q.options.find(o => o.key === v);
+                return opt ? opt.text : v;
+              }).join(', ');
+            } else if (q.type === 'radio' || q.type === 'dropdown') {
+              const v = formData.get(`question${q.number}`);
+              const opt = q.options.find(o => o.key === v);
+              answer = opt ? opt.text : (v || '');
+            } else if (q.type === 'textarea') {
+              answer = formData.get(`question${q.number}`) || '';
+            }
+            resultText += `【您的答案】：${answer}\n`;
+          });
+          // 输出到 window.surveyResult
+          window.surveyResult = resultText.trim();
         });
         formElement.appendChild(submitButton);
       }
