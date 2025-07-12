@@ -4,12 +4,41 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>调查问卷</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 使用 Tailwind CSS v3 生产环境方式 -->
+  <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- 配置 Tailwind 颜色和字体 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6', // 蓝色主色调
+            success: '#10b981', // 成功/提交按钮
+            danger: '#ef4444',  // 错误提示
+            info: '#3b82f6',    // 信息栏
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <!-- 自定义工具类 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .btn-hover {
+        @apply transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary;
+      }
+    }
+  </style>
 </head>
 <body class="font-inter bg-gray-50 text-gray-800 min-h-screen flex flex-col">
   <main class="flex-grow container mx-auto px-4 py-8 md:py-12">
-    <!-- 只保留问卷预览区域 -->
+    <!-- 问卷预览区域 -->
     <div class="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg">
       <div class="bg-info p-4">
         <h2 class="text-xl font-bold text-white flex items-center">
@@ -30,18 +59,22 @@
       </div>
     </div>
   </main>
+  
   <script>
     // ========== URL 参数自动加载功能 ==========
     document.addEventListener('DOMContentLoaded', function() {
+      // 获取 URL 参数
       function getUrlParameter(name) {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get(name);
       }
+      
+      // 显示通知
       function showAutoLoadNotification(message, type = 'info') {
         const notification = document.createElement('div');
         notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 transition-all duration-300 ${
-          type === 'success' ? 'bg-green-500' : 
-          type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+          type === 'success' ? 'bg-success' : 
+          type === 'error' ? 'bg-danger' : 'bg-info'
         }`;
         notification.innerHTML = `
           <div class="flex items-center">
@@ -50,6 +83,8 @@
           </div>
         `;
         document.body.appendChild(notification);
+        
+        // 3秒后自动消失
         setTimeout(() => {
           notification.style.opacity = '0';
           setTimeout(() => {
@@ -59,13 +94,17 @@
           }, 300);
         }, 3000);
       }
+      
+      // 自动加载问卷
       function autoLoadSurvey() {
         const surveyParam = getUrlParameter('survey');
         if (surveyParam) {
           try {
+            // 尝试多种解码方式，提高兼容性
             let decodedText;
             try {
               decodedText = atob(surveyParam);
+              // 检查是否包含无效字符
               let hasValidChars = true;
               for (let i = 0; i < Math.min(decodedText.length, 50); i++) {
                 const charCode = decodedText.charCodeAt(i);
@@ -78,6 +117,7 @@
                 throw new Error('需要使用 UTF-8 解码');
               }
             } catch (error) {
+              // 尝试 UTF-8 解码
               try {
                 const binaryString = atob(surveyParam);
                 const bytes = new Uint8Array(binaryString.length);
@@ -86,6 +126,7 @@
                 }
                 decodedText = new TextDecoder('utf-8').decode(bytes);
               } catch (utf8Error) {
+                // 尝试 URL 解码
                 try {
                   const urlDecoded = decodeURIComponent(surveyParam);
                   const binaryString = atob(urlDecoded);
@@ -95,6 +136,7 @@
                   }
                   decodedText = new TextDecoder('utf-8').decode(bytes);
                 } catch (finalError) {
+                  // 最后尝试直接解码
                   try {
                     decodedText = decodeURIComponent(atob(surveyParam));
                   } catch (lastError) {
@@ -103,10 +145,13 @@
                 }
               }
             }
+            
+            // 清理文本
             decodedText = decodedText.replace(/^\uFEFF/, '').trim();
             if (!decodedText || decodedText.length < 5) {
               throw new Error('解码结果为空或过短');
             }
+            
             // 解析并渲染问卷
             try {
               const survey = parseSurvey(decodedText);
@@ -121,48 +166,62 @@
           }
         }
       }
+      
+      // 显示错误信息
       function showError(elementId, message) {
         const errorElement = document.getElementById(elementId);
         errorElement.querySelector('span').textContent = message;
         errorElement.classList.remove('hidden');
       }
+      
       // 解析调查问卷文本
       function parseSurvey(text) {
         const lines = text.split('\n').map(line => line.trim());
         if (lines.length === 0) {
           throw new Error('调查问卷内容不能为空');
         }
+        
         const survey = {
           title: lines[0],
           description: '',
           questions: []
         };
+        
         let currentQuestion = null;
         let inDescription = true;
         survey.fullText = text;
+        
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i];
           if (!line) continue;
+          
+          // 识别问题行
           const questionMatch = line.match(/^(\d+)\.\s+(.*?)\[(radio|checkbox|dropdown|textarea)\]$/);
           if (questionMatch) {
             inDescription = false;
             const questionNumber = questionMatch[1];
             const questionText = questionMatch[2];
             const questionType = questionMatch[3];
+            
             currentQuestion = {
               number: questionNumber,
               text: questionText,
               type: questionType,
-              options: []
+              options: [],
+              required: true // 默认所有问题都必填
             };
+            
             survey.questions.push(currentQuestion);
             continue;
           }
+          
+          // 识别选项行
           if (currentQuestion && (currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox' || currentQuestion.type === 'dropdown')) {
             const optionMatch = line.match(/^([a-z])\)\s+(.*)$/);
             if (optionMatch) {
               const optionKey = optionMatch[1];
               const optionText = optionMatch[2];
+              
               currentQuestion.options.push({
                 key: optionKey,
                 text: optionText
@@ -170,109 +229,165 @@
               continue;
             }
           }
+          
+          // 收集描述内容
           if (inDescription) {
             survey.description += (survey.description ? '\n' : '') + line;
           }
         }
+        
         if (survey.questions.length === 0) {
           throw new Error('调查问卷中未找到问题');
         }
+        
         return survey;
       }
+      
       // 渲染调查问卷
       function renderSurvey(survey) {
         const container = document.getElementById('preview-container');
         container.innerHTML = '';
         window.currentSurvey = survey;
 
-        // 1. 创建表单
+        // 创建表单
         const formElement = document.createElement('form');
         formElement.id = 'survey-form';
         container.appendChild(formElement);
 
-        // 2. 渲染所有题目
+        // 渲染所有题目
         survey.questions.forEach((question, index) => {
           const questionContainer = document.createElement('div');
-          questionContainer.className = 'mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200';
+          questionContainer.className = 'mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-300';
+          
+          // 添加必填标记
+          const requiredMark = question.required ? '<span class="text-danger ml-1">*</span>' : '';
+          
           formElement.appendChild(questionContainer);
+          
           const questionTitle = document.createElement('h3');
           questionTitle.className = 'text-lg font-semibold mb-3 text-gray-800';
-          questionTitle.textContent = `${question.number}. ${question.text}`;
+          questionTitle.innerHTML = `${question.number}. ${question.text}${requiredMark}`;
           questionContainer.appendChild(questionTitle);
+          
           switch (question.type) {
             case 'radio':
             case 'checkbox':
               question.options.forEach(option => {
                 const inputGroup = document.createElement('div');
                 inputGroup.className = 'mb-2 flex items-center';
+                
                 const input = document.createElement('input');
                 input.type = question.type;
                 input.id = `q${question.number}_${option.key}`;
                 input.name = `question${question.number}`;
                 input.value = option.key;
                 input.className = 'mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300';
+                input.required = question.required;
+                
                 const label = document.createElement('label');
                 label.htmlFor = `q${question.number}_${option.key}`;
                 label.className = 'text-gray-700';
                 label.textContent = option.text;
+                
                 inputGroup.appendChild(input);
                 inputGroup.appendChild(label);
                 questionContainer.appendChild(inputGroup);
               });
               break;
+              
             case 'dropdown':
               const select = document.createElement('select');
               select.name = `question${question.number}`;
               select.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary';
+              select.required = question.required;
+              
               const defaultOption = document.createElement('option');
               defaultOption.value = '';
               defaultOption.textContent = '请选择...';
               defaultOption.selected = true;
               defaultOption.disabled = true;
+              
               select.appendChild(defaultOption);
+              
               question.options.forEach(option => {
                 const optionElement = document.createElement('option');
                 optionElement.value = option.key;
                 optionElement.textContent = option.text;
                 select.appendChild(optionElement);
               });
+              
               questionContainer.appendChild(select);
               break;
+              
             case 'textarea':
               const textarea = document.createElement('textarea');
               textarea.name = `question${question.number}`;
               textarea.rows = 4;
               textarea.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary';
               textarea.placeholder = '请输入您的回答...';
+              textarea.required = question.required;
+              
               questionContainer.appendChild(textarea);
               break;
           }
         });
 
-        // 3. 创建并挂载提交按钮
+        // 创建并挂载提交按钮
         const submitButton = document.createElement('button');
         submitButton.type = 'submit';
         submitButton.id = 'submit-survey';
-        submitButton.className = 'mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center mx-auto transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500';
+        submitButton.className = 'mt-6 px-6 py-3 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg flex items-center btn-hover mx-auto';
         submitButton.innerHTML = '<i class="fa fa-check mr-2"></i> 提交问卷';
+        
         formElement.appendChild(submitButton);
 
-        // 4. 绑定提交事件
+        // 绑定提交事件
         formElement.addEventListener('submit', function(event) {
           event.preventDefault();
           
-          // 验证必填问题
+          // 验证表单
           let isValid = true;
           survey.questions.forEach(q => {
             if (q.required) {
-              const answer = formData.get(`question${q.number}`);
-              if (!answer) {
+              const inputElements = formElement.querySelectorAll(`[name="question${q.number}"]`);
+              let isAnswered = false;
+              
+              if (q.type === 'checkbox' || q.type === 'radio') {
+                // 多选/单选验证
+                inputElements.forEach(input => {
+                  if (input.checked) {
+                    isAnswered = true;
+                  }
+                });
+              } else {
+                // 下拉框/文本框验证
+                const inputValue = formElement.querySelector(`[name="question${q.number}"]`).value;
+                if (inputValue) {
+                  isAnswered = true;
+                }
+              }
+              
+              if (!isAnswered) {
                 isValid = false;
                 // 标记问题为错误
-                const questionEl = document.querySelector(`[name="question${q.number}"]`).closest('.mb-6');
-                questionEl.classList.add('border-red-500');
+                const questionEl = formElement.querySelector(`[name="question${q.number}"]`).closest('.mb-6');
+                questionEl.classList.add('border-danger');
+                
+                // 添加错误动画
+                questionEl.animate([
+                  { transform: 'translateX(-5px)' },
+                  { transform: 'translateX(5px)' },
+                  { transform: 'translateX(-3px)' },
+                  { transform: 'translateX(3px)' },
+                  { transform: 'translateX(0)' }
+                ], {
+                  duration: 500,
+                  easing: 'ease-out'
+                });
+                
+                // 3秒后移除错误标记
                 setTimeout(() => {
-                  questionEl.classList.remove('border-red-500');
+                  questionEl.classList.remove('border-danger');
                 }, 3000);
               }
             }
@@ -283,6 +398,7 @@
             return;
           }
           
+          // 收集表单数据
           const formData = new FormData(formElement);
           let resultText = '';
           resultText += survey.title + '\n';
@@ -291,6 +407,7 @@
           }
           resultText += '\n---------- 回答内容 ----------\n\n';
           
+          // 整理回答结果
           survey.questions.forEach(q => {
             resultText += `【${q.number}. ${q.text}】\n`;
             let answer = '';
@@ -321,17 +438,16 @@
           // 这里可以添加实际提交逻辑，例如发送到服务器
           console.log('提交的问卷结果:', resultText);
           
-          // 模拟提交后的跳转或其他操作
+          // 显示提交成功页面
           setTimeout(() => {
-            // 显示结果页面
             container.innerHTML = `
               <div class="text-center py-12">
                 <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-6">
-                  <i class="fa fa-check text-2xl text-green-500"></i>
+                  <i class="fa fa-check text-2xl text-success"></i>
                 </div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-3">问卷提交成功</h2>
                 <p class="text-gray-600 max-w-md mx-auto mb-6">感谢您的参与，您的反馈对我们非常重要。</p>
-                <button id="restart-survey" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <button id="restart-survey" class="px-6 py-3 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg btn-hover">
                   <i class="fa fa-refresh mr-2"></i> 重新填写
                 </button>
               </div>
@@ -344,6 +460,8 @@
           }, 1500);
         });
       }
+      
+      // 初始化加载问卷
       autoLoadSurvey();
     });
   </script>
