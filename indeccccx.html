@@ -184,19 +184,13 @@
         const container = document.getElementById('preview-container');
         container.innerHTML = '';
         window.currentSurvey = survey;
-        const titleElement = document.createElement('h2');
-        titleElement.className = 'text-2xl font-bold mb-4 text-gray-800';
-        titleElement.textContent = survey.title;
-        container.appendChild(titleElement);
-        if (survey.description) {
-          const descriptionElement = document.createElement('p');
-          descriptionElement.className = 'text-gray-600 mb-6';
-          descriptionElement.textContent = survey.description;
-          container.appendChild(descriptionElement);
-        }
+
+        // 1. 创建表单
         const formElement = document.createElement('form');
         formElement.id = 'survey-form';
         container.appendChild(formElement);
+
+        // 2. 渲染所有题目
         survey.questions.forEach((question, index) => {
           const questionContainer = document.createElement('div');
           questionContainer.className = 'mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200';
@@ -254,21 +248,24 @@
               break;
           }
         });
+
+        // 3. 创建并挂载提交按钮
         const submitButton = document.createElement('button');
         submitButton.type = 'submit';
         submitButton.id = 'submit-survey';
         submitButton.className = 'mt-4 px-6 py-3 bg-success hover:bg-success/90 text-white font-medium rounded-lg flex items-center btn-hover mx-auto';
         submitButton.innerHTML = '<i class="fa fa-check mr-2"></i> 提交问卷';
+        formElement.appendChild(submitButton);
+
+        // 4. 绑定提交事件
         formElement.addEventListener('submit', function(event) {
           event.preventDefault();
           const formData = new FormData(formElement);
           let resultText = '';
-          // 标题和说明
           resultText += survey.title + '\n';
           if (survey.description) {
             resultText += survey.description + '\n';
           }
-          // 每道题
           survey.questions.forEach(q => {
             resultText += `\n${q.number}. ${q.text}\n`;
             if (q.type === 'radio' || q.type === 'checkbox' || q.type === 'dropdown') {
@@ -276,7 +273,6 @@
                 resultText += `${opt.key}) ${opt.text}\n`;
               });
             }
-            // 用户答案
             let answer = '';
             if (q.type === 'checkbox') {
               const values = formData.getAll(`question${q.number}`);
@@ -296,7 +292,6 @@
           // 输出到 window.surveyResult
           window.surveyResult = resultText.trim();
         });
-        formElement.appendChild(submitButton);
       }
       autoLoadSurvey();
     });
