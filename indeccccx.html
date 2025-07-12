@@ -253,27 +253,48 @@
         const submitButton = document.createElement('button');
         submitButton.type = 'submit';
         submitButton.id = 'submit-survey';
-        submitButton.className = 'mt-4 px-6 py-3 bg-success hover:bg-success/90 text-white font-medium rounded-lg flex items-center btn-hover mx-auto';
+        submitButton.className = 'mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center mx-auto transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500';
         submitButton.innerHTML = '<i class="fa fa-check mr-2"></i> 提交问卷';
         formElement.appendChild(submitButton);
 
         // 4. 绑定提交事件
         formElement.addEventListener('submit', function(event) {
           event.preventDefault();
+          
+          // 验证必填问题
+          let isValid = true;
+          survey.questions.forEach(q => {
+            if (q.required) {
+              const answer = formData.get(`question${q.number}`);
+              if (!answer) {
+                isValid = false;
+                // 标记问题为错误
+                const questionEl = document.querySelector(`[name="question${q.number}"]`).closest('.mb-6');
+                questionEl.classList.add('border-red-500');
+                setTimeout(() => {
+                  questionEl.classList.remove('border-red-500');
+                }, 3000);
+              }
+            }
+          });
+          
+          if (!isValid) {
+            showAutoLoadNotification('请回答所有必填问题', 'error');
+            return;
+          }
+          
           const formData = new FormData(formElement);
           let resultText = '';
           resultText += survey.title + '\n';
           if (survey.description) {
             resultText += survey.description + '\n';
           }
+          resultText += '\n---------- 回答内容 ----------\n\n';
+          
           survey.questions.forEach(q => {
-            resultText += `\n${q.number}. ${q.text}\n`;
-            if (q.type === 'radio' || q.type === 'checkbox' || q.type === 'dropdown') {
-              q.options.forEach(opt => {
-                resultText += `${opt.key}) ${opt.text}\n`;
-              });
-            }
+            resultText += `【${q.number}. ${q.text}】\n`;
             let answer = '';
+            
             if (q.type === 'checkbox') {
               const values = formData.getAll(`question${q.number}`);
               answer = values.map(v => {
@@ -287,10 +308,40 @@
             } else if (q.type === 'textarea') {
               answer = formData.get(`question${q.number}`) || '';
             }
-            resultText += `【您的答案】：${answer}\n`;
+            
+            resultText += `${answer}\n\n`;
           });
+          
+          // 显示提交成功消息
+          showAutoLoadNotification('问卷提交成功！', 'success');
+          
           // 输出到 window.surveyResult
           window.surveyResult = resultText.trim();
+          
+          // 这里可以添加实际提交逻辑，例如发送到服务器
+          console.log('提交的问卷结果:', resultText);
+          
+          // 模拟提交后的跳转或其他操作
+          setTimeout(() => {
+            // 显示结果页面
+            container.innerHTML = `
+              <div class="text-center py-12">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-6">
+                  <i class="fa fa-check text-2xl text-green-500"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">问卷提交成功</h2>
+                <p class="text-gray-600 max-w-md mx-auto mb-6">感谢您的参与，您的反馈对我们非常重要。</p>
+                <button id="restart-survey" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                  <i class="fa fa-refresh mr-2"></i> 重新填写
+                </button>
+              </div>
+            `;
+            
+            // 重新填写按钮
+            document.getElementById('restart-survey').addEventListener('click', function() {
+              renderSurvey(survey);
+            });
+          }, 1500);
         });
       }
       autoLoadSurvey();
